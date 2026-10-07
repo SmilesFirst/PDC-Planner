@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>PDC Workback Planner</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f2233'/%3E%3Crect x='6' y='9' width='12' height='4' rx='2' fill='%23f0c94a'/%3E%3Crect x='11' y='15' width='15' height='4' rx='2' fill='%2358b5cf'/%3E%3Crect x='8' y='21' width='9' height='4' rx='2' fill='%23ee8a3c'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <h1>PDC Workback Planner</h1>
+      <p id="eventLine" class="event-line">Loading plan</p>
+    </div>
+    <div class="top-actions">
+      <span id="syncStatus" class="sync" role="status"></span>
+      <button class="btn ghost-light" id="btnName" type="button"></button>
+      <button class="btn ghost-light" id="btnRebase" type="button">Shift dates</button>
+      <button class="btn ghost-light" id="btnExport" type="button">Export CSV</button>
+      <button class="btn ghost-light" id="btnPrint" type="button">Print</button>
+    </div>
+  </header>
+
+  <div id="banners"></div>
+
+  <div class="shell">
+    <nav class="rail" id="rail" aria-label="Departments"></nav>
+
+    <main class="main">
+      <section class="toolbar" aria-label="View options">
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" data-view="timeline">Timeline</button>
+          <button type="button" data-view="list">List</button>
+        </div>
+        <label class="field">Group by
+          <select id="selGroup">
+            <option value="department">Department</option>
+            <option value="phase">Phase</option>
+            <option value="none">Nothing</option>
+          </select>
+        </label>
+        <div class="seg" role="group" aria-label="Zoom" id="zoomSeg">
+          <button type="button" data-zoom="month">Month</button>
+          <button type="button" data-zoom="week">Week</button>
+          <button type="button" data-zoom="day">Day</button>
+        </div>
+        <label class="field">Status
+          <select id="selStatus">
+            <option value="all">All</option>
+            <option value="open">Not done yet</option>
+            <option value="overdue">Overdue</option>
+            <option value="Not Started">Not started</option>
+            <option value="In Progress">In progress</option>
+            <option value="Blocked">Blocked</option>
+            <option value="Done">Done</option>
+          </select>
+        </label>
+        <label class="field">Priority
+          <select id="selPriority">
+            <option value="0">Any</option>
+            <option value="5">5 only</option>
+            <option value="4">4 and up</option>
+            <option value="3">3 and up</option>
+          </select>
+        </label>
+        <label class="field grow-field">Search
+          <input id="inpSearch" type="search" placeholder="Task, team or note" autocomplete="off">
+        </label>
+        <label class="check"><input id="chkRef" type="checkbox"> Hide PDC organizer dates</label>
+        <button class="btn primary" id="btnAdd" type="button">Add task</button>
+      </section>
+
+      <section id="stats" class="stats" aria-live="polite"></section>
+      <div id="legend" class="legend"></div>
+      <section id="board" class="board" aria-label="Tasks"></section>
+      <p class="foot" id="foot"></p>
+    </main>
+  </div>
+
+  <div id="backdrop" class="backdrop" hidden></div>
+  <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden></aside>
+  <dialog id="dlg" class="dlg"></dialog>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

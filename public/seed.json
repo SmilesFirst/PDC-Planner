@@ -1,0 +1,786 @@
+{
+ "event": {
+  "name": "PDC 2026",
+  "anchorTaskId": "t41"
+ },
+ "tasks": [
+  {
+   "id": "t01",
+   "title": "Confirm participation & budget approved",
+   "phase": "Planning",
+   "owners": [
+    "Management"
+   ],
+   "start": "2025-09-08",
+   "end": "2025-09-12",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Both",
+   "notes": "Kickoff meeting",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t02",
+   "title": "Assign internal team roles (Logistics, Marketing, Sales)",
+   "phase": "Planning",
+   "owners": [
+    "Management"
+   ],
+   "start": "2025-09-08",
+   "end": "2025-09-12",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "CSV",
+   "notes": "Run alongside approval",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t03",
+   "title": "Submit booth application",
+   "phase": "Booth",
+   "owners": [
+    "Exhibits Team"
+   ],
+   "start": "2025-09-09",
+   "end": "2025-09-09",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Both",
+   "notes": "Submit day 1 of window",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t04",
+   "title": "Confirm booth size and location",
+   "phase": "Booth",
+   "owners": [
+    "Exhibits Team"
+   ],
+   "start": "2025-09-10",
+   "end": "2025-09-19",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t05",
+   "title": "Draft booth design & engagement plan",
+   "phase": "Booth",
+   "owners": [
+    "Marketing",
+    "Design"
+   ],
+   "start": "2025-09-10",
+   "end": "2025-09-25",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "CSV",
+   "notes": "Date approximate — CSV only said 'Sep-25'",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t06",
+   "title": "Deadline for multiple booth requests (2+ booths)",
+   "phase": "Booth",
+   "owners": [
+    "Exhibits Team"
+   ],
+   "start": "2025-09-23",
+   "end": "2025-09-23",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Both",
+   "notes": "Hard external deadline",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t07",
+   "title": "Last day for full refund on booth cancellations",
+   "phase": "Booth",
+   "owners": [
+    "Exhibits Team"
+   ],
+   "start": "2025-09-25",
+   "end": "2025-09-25",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Workback",
+   "notes": "Hard external deadline",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t08",
+   "title": "Floorplan available on website",
+   "phase": "External Deadline",
+   "owners": [
+    "PDC Organizer"
+   ],
+   "start": "2025-10-01",
+   "end": "2025-10-01",
+   "status": "Not Started",
+   "priority": 1,
+   "source": "Workback",
+   "notes": "Informational only",
+   "needsOwner": false,
+   "reference": true
+  },
+  {
+   "id": "t09",
+   "title": "Attendee registration opens; plan e-blast & social campaign",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2025-10-15",
+   "end": "2025-10-19",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t10",
+   "title": "Final payment for all assigned booths (no more refunds)",
+   "phase": "Booth",
+   "owners": [
+    "Exhibits Team"
+   ],
+   "start": "2025-10-29",
+   "end": "2025-10-29",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Workback",
+   "notes": "Hard external deadline",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t11",
+   "title": "Single-booth sales open (full payment required)",
+   "phase": "External Deadline",
+   "owners": [
+    "PDC Organizer"
+   ],
+   "start": "2025-10-30",
+   "end": "2025-10-30",
+   "status": "Not Started",
+   "priority": 1,
+   "source": "Workback",
+   "notes": "Informational only",
+   "needsOwner": false,
+   "reference": true
+  },
+  {
+   "id": "t12",
+   "title": "Book travel & accommodations",
+   "phase": "Logistics",
+   "owners": [
+    "Admin"
+   ],
+   "start": "2025-11-01",
+   "end": "2025-11-14",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Both",
+   "notes": "Hotels fill fast",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t13",
+   "title": "Confirm booth design & AV needs / finalize",
+   "phase": "Booth",
+   "owners": [
+    "Marketing",
+    "Design"
+   ],
+   "start": "2025-11-01",
+   "end": "2025-11-14",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t14",
+   "title": "Order large print materials (banners, posters)",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing",
+    "Design"
+   ],
+   "start": "2025-11-01",
+   "end": "2025-11-07",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t15",
+   "title": "Draft product launch or show promotions",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2025-11-01",
+   "end": "2025-11-07",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Workback",
+   "notes": "No owner in source CSV — tentative owner assigned, please confirm",
+   "needsOwner": true,
+   "reference": false
+  },
+  {
+   "id": "t16",
+   "title": "Show Service Forms available on website",
+   "phase": "External Deadline",
+   "owners": [
+    "PDC Organizer"
+   ],
+   "start": "2025-12-01",
+   "end": "2025-12-05",
+   "status": "Not Started",
+   "priority": 1,
+   "source": "Workback",
+   "notes": "Informational only",
+   "needsOwner": false,
+   "reference": true
+  },
+  {
+   "id": "t17",
+   "title": "Finalize catalogue design (Q1/Q2 specials)",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing",
+    "Design"
+   ],
+   "start": "2025-11-20",
+   "end": "2025-11-30",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "CSV",
+   "notes": "EN/FR versions",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t18",
+   "title": "Order promotional flyers",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2025-12-10",
+   "end": "2025-12-15",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "CSV",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t19",
+   "title": "Order giveaways (branded items, samples) & approve proofs",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2025-12-01",
+   "end": "2025-12-14",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Both",
+   "notes": "Tote bags, pens, bottles",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t20",
+   "title": "Last day for exhibitors to purchase advertising in Conference Program",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2025-12-13",
+   "end": "2025-12-15",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Workback",
+   "notes": "External deadline",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t21",
+   "title": "Submit exhibitor directory listings",
+   "phase": "Booth",
+   "owners": [
+    "Exhibits Team"
+   ],
+   "start": "2025-12-01",
+   "end": "2025-12-01",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t22",
+   "title": "Plan social media calendar (countdown to PDC)",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2025-12-01",
+   "end": "2025-12-05",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t23",
+   "title": "Internal milestone: finalize staff attending & shifts",
+   "phase": "Staff",
+   "owners": [
+    "Management",
+    "Admin"
+   ],
+   "start": "2025-12-15",
+   "end": "2025-12-28",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t24",
+   "title": "Confirm shipping arrangements for booth materials",
+   "phase": "Logistics",
+   "owners": [
+    "Logistics"
+   ],
+   "start": "2026-01-05",
+   "end": "2026-01-09",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t25",
+   "title": "Schedule demos or speaking spots (if available)",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing",
+    "Sales"
+   ],
+   "start": "2026-01-05",
+   "end": "2026-01-09",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Workback",
+   "notes": "No owner in source CSV — tentative owner assigned, please confirm",
+   "needsOwner": true,
+   "reference": false
+  },
+  {
+   "id": "t26",
+   "title": "Conduct staff training (talking points, demos, promos)",
+   "phase": "Staff",
+   "owners": [
+    "Sales",
+    "Marketing"
+   ],
+   "start": "2026-01-05",
+   "end": "2026-01-09",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t27",
+   "title": "Internal milestone: finalize lead capture process (badge scanners, QR codes)",
+   "phase": "Staff",
+   "owners": [
+    "Sales",
+    "Marketing"
+   ],
+   "start": "2026-01-05",
+   "end": "2026-01-09",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Workback",
+   "notes": "No owner in source CSV — tentative owner assigned, please confirm",
+   "needsOwner": true,
+   "reference": false
+  },
+  {
+   "id": "t28",
+   "title": "Print completion of all materials",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Vendors"
+   ],
+   "start": "2026-01-15",
+   "end": "2026-02-10",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "CSV",
+   "notes": "'JanFeb 2026' in source — date range approximate",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t29",
+   "title": "Website closes for all Booth Representative registration/changes",
+   "phase": "External Deadline",
+   "owners": [
+    "PDC Organizer"
+   ],
+   "start": "2026-01-17",
+   "end": "2026-01-17",
+   "status": "Not Started",
+   "priority": 1,
+   "source": "Workback",
+   "notes": "Informational only",
+   "needsOwner": false,
+   "reference": true
+  },
+  {
+   "id": "t30",
+   "title": "Ship printed materials to VCC",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Logistics"
+   ],
+   "start": "2026-02-15",
+   "end": "2026-02-25",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t31",
+   "title": "Send teaser e-blast: 'See us at PDC Booth #XXX'",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2026-02-01",
+   "end": "2026-02-01",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t32",
+   "title": "Launch social countdown campaign (weekly → daily)",
+   "phase": "Marketing & Printing",
+   "owners": [
+    "Marketing"
+   ],
+   "start": "2026-02-01",
+   "end": "2026-02-05",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t33",
+   "title": "Final check: confirm hotel, shipping deadlines, insurance",
+   "phase": "Logistics",
+   "owners": [
+    "Admin",
+    "Logistics"
+   ],
+   "start": "2026-02-01",
+   "end": "2026-02-05",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t34",
+   "title": "Prepare follow-up plan (email templates, sales rep assignments)",
+   "phase": "Post-Event",
+   "owners": [
+    "Sales"
+   ],
+   "start": "2026-02-01",
+   "end": "2026-02-05",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t35",
+   "title": "Internal milestone: all booth kits/materials shipped",
+   "phase": "Logistics",
+   "owners": [
+    "Logistics"
+   ],
+   "start": "2026-02-01",
+   "end": "2026-02-01",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t36",
+   "title": "Print staff badges & schedules",
+   "phase": "Staff",
+   "owners": [
+    "Admin"
+   ],
+   "start": "2026-02-10",
+   "end": "2026-02-20",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "CSV",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t37",
+   "title": "Pack emergency kit (tools, chargers, signage)",
+   "phase": "Logistics",
+   "owners": [
+    "Logistics"
+   ],
+   "start": "2026-02-15",
+   "end": "2026-02-17",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t38",
+   "title": "All booth variation requests due",
+   "phase": "Booth",
+   "owners": [
+    "Exhibits Team"
+   ],
+   "start": "2026-02-27",
+   "end": "2026-02-27",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Workback",
+   "notes": "External deadline",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t39",
+   "title": "Staff briefing dinner/meeting",
+   "phase": "Staff",
+   "owners": [
+    "Management"
+   ],
+   "start": "2026-03-03",
+   "end": "2026-03-04",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t40",
+   "title": "Move-in: booth setup at Vancouver Convention Centre",
+   "phase": "Booth",
+   "owners": [
+    "Logistics"
+   ],
+   "start": "2026-03-03",
+   "end": "2026-03-04",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Both",
+   "notes": "Set-up badge required for Exhibit Hall entrance",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t41",
+   "title": "PDC 2026 live — booth & sessions",
+   "phase": "Event",
+   "owners": [
+    "All Teams"
+   ],
+   "start": "2026-03-05",
+   "end": "2026-03-07",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "CSV",
+   "notes": "CSV says through Mar 7; Workback shows hall open only Mar 5-6 — confirm actual dates",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t42",
+   "title": "Daily: social updates, staff rotations, lead capture, end-of-day huddles",
+   "phase": "Event",
+   "owners": [
+    "All Teams"
+   ],
+   "start": "2026-03-05",
+   "end": "2026-03-07",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Workback",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t43",
+   "title": "Dismantle / move out (no earlier than 5:30pm Fri)",
+   "phase": "Booth",
+   "owners": [
+    "Logistics"
+   ],
+   "start": "2026-03-06",
+   "end": "2026-03-06",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Workback",
+   "notes": "All material off floor by 11:00pm",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t44",
+   "title": "Send thank-you emails to booth visitors",
+   "phase": "Post-Event",
+   "owners": [
+    "Marketing",
+    "Sales"
+   ],
+   "start": "2026-03-05",
+   "end": "2026-03-07",
+   "status": "Not Started",
+   "priority": 4,
+   "source": "Both",
+   "notes": "Within 48 hours",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t45",
+   "title": "Sort leads by priority (hot/warm/cold) & begin follow-ups",
+   "phase": "Post-Event",
+   "owners": [
+    "Sales"
+   ],
+   "start": "2026-03-05",
+   "end": "2026-03-08",
+   "status": "Not Started",
+   "priority": 5,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t46",
+   "title": "Internal debrief meeting (review KPIs, ROI)",
+   "phase": "Post-Event",
+   "owners": [
+    "Management"
+   ],
+   "start": "2026-03-25",
+   "end": "2026-03-29",
+   "status": "Not Started",
+   "priority": 3,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  },
+  {
+   "id": "t47",
+   "title": "Gather staff & customer feedback",
+   "phase": "Post-Event",
+   "owners": [
+    "Management"
+   ],
+   "start": "2026-03-25",
+   "end": "2026-03-29",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Workback",
+   "notes": "No owner in source CSV — tentative owner assigned, please confirm",
+   "needsOwner": true,
+   "reference": false
+  },
+  {
+   "id": "t48",
+   "title": "Document lessons learned for PDC 2027",
+   "phase": "Post-Event",
+   "owners": [
+    "All Teams"
+   ],
+   "start": "2026-03-29",
+   "end": "2026-04-11",
+   "status": "Not Started",
+   "priority": 2,
+   "source": "Both",
+   "notes": "",
+   "needsOwner": false,
+   "reference": false
+  }
+ ]
+}

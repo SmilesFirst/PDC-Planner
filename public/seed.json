@@ -1,6 +1,6 @@
 {
  "event": {
-  "name": "PDC 2027",
+  "name": "PDC 2026",
   "anchorTaskId": "t41"
  },
  "tasks": [
@@ -782,5 +782,88 @@
    "needsOwner": false,
    "reference": false
   }
- ]
+ ],
+ "contacts": [
+  {
+   "id": "c01",
+   "party": "Pacific Dental Conference (PDC) Office",
+   "role": "Organizer – General inquiries",
+   "phone": "+1 604-736-3781",
+   "email": "info@pdconf.com",
+   "address": "Suite 420 – 4400 Dominion Street, Burnaby, BC V5G 4G3",
+   "notes": "Main office line and email for general questions",
+   "source": "https://pacificdentalconference.com/contact-us/"
+  },
+  {
+   "id": "c02",
+   "party": "PDC Exhibits Team",
+   "role": "Organizer – Exhibitor inquiries",
+   "phone": "+1 604-736-3781",
+   "email": "exhibits@pdconf.com",
+   "address": "Suite 420 – 4400 Dominion Street, Burnaby, BC V5G 4G3",
+   "notes": "All exhibitor-related questions",
+   "source": "https://pacificdentalconference.com/contact-us/"
+  },
+  {
+   "id": "c03",
+   "party": "Vancouver Convention Centre – General",
+   "role": "Venue – General information",
+   "phone": "+1 604-689-8232",
+   "email": "info@vancouverconventioncentre.com",
+   "address": "1055 Canada Place, Vancouver, BC V6C 0C3",
+   "notes": "General venue contact",
+   "source": "https://www.vancouverconventioncentre.com/contact"
+  },
+  {
+   "id": "c04",
+   "party": "Vancouver Convention Centre – Exhibitor Services",
+   "role": "Venue – Exhibitor services & online ordering",
+   "phone": "+1 604-647-7480",
+   "email": "exhibitservices@vancouverconventioncentre.com",
+   "address": "1055 Canada Place, Vancouver, BC V6C 0C3",
+   "notes": "Electrical, internet, booth services, online ordering support",
+   "source": "https://www.vancouverconventioncentre.com/services/exhibitor-services/online-ordering"
+  },
+  {
+   "id": "c05",
+   "party": "Vancouver Convention Centre – Electrical/Plumbing Desk",
+   "role": "Venue – Electrical & plumbing service questions",
+   "phone": "+1 604-647-7206",
+   "email": "",
+   "address": "1055 Canada Place, Vancouver, BC V6C 0C3",
+   "notes": "Questions about electrical and plumbing requirements",
+   "source": "https://www.vancouverconventioncentre.com/services/event-services"
+  },
+  {
+   "id": "c06",
+   "party": "Bell – On-site Telecom (VCC)",
+   "role": "Venue – Phone/data services (on-site Bell reps)",
+   "phone": "+1 604-647-7377",
+   "email": "",
+   "address": "On-site at Vancouver Convention Centre",
+   "notes": "Customized estimates for telecom/internet at VCC",
+   "source": "https://www.vancouverconventioncentre.com/services/event-services/operating-guidelines"
+  },
+  {
+   "id": "c07",
+   "party": "Map Your Show (Floorplan/Directory Help)",
+   "role": "Platform – Floor plan & exhibitor directory help",
+   "phone": "Toll-free: 888-527-8823; International: +1 513-527-8823",
+   "email": "help@mapyourshow.com",
+   "address": "",
+   "notes": "Technical help for online floor plan/exhibitor listings",
+   "source": "https://pdc26.mapyourshow.com/8_0/explore/help.cfm"
+  },
+  {
+   "id": "c08",
+   "party": "PDC Show Website Help",
+   "role": "Organizer – Show related questions via MYS page",
+   "phone": "",
+   "email": "zoie@pdconf.com",
+   "address": "",
+   "notes": "Email listed on MYS Help page for show questions",
+   "source": "https://pdc26.mapyourshow.com/8_0/explore/help.cfm"
+  }
+ ],
+ "notes": []
 }

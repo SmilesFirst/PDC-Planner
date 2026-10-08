@@ -16,7 +16,14 @@
     name: 'pdc.name',
     pass: 'pdc.passcode',
     local: 'pdc.local.tasks',
+    localContacts: 'pdc.local.contacts',
+    localNotes: 'pdc.local.notes',
     banner: 'pdc.banner.dismissed',
+  };
+  const COL = {
+    tasks: { list: 'tasks', local: LS.local },
+    contacts: { list: 'contacts', local: LS.localContacts },
+    notes: { list: 'notes', local: LS.localNotes },
   };
 
   /* ------------------------------------------------------------------ *
@@ -43,6 +50,12 @@
     drawerOpen: false,
     saving: 0,
     needFocus: true,
+    tab: 'plan', // 'plan' | 'contacts' | 'notes'
+    contacts: [],
+    notes: [],
+    cCat: 'All',
+    cQ: '',
+    nQ: '',
   };
 
   /* ------------------------------------------------------------------ *
@@ -176,136 +189,147 @@
   /* ------------------------------------------------------------------ *
    * Data access
    * ------------------------------------------------------------------ */
-  async function api(method, query, body) {
+  async function api(kind, method, query, body) {
     const headers = { 'Content-Type': 'application/json' };
     if (S.passcode) headers['x-passcode'] = S.passcode;
-    const res = await fetch('/api/tasks' + (query || ''), { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const res = await fetch('/api/' + kind + (query || ''), { method, headers, body: body ? JSON.stringify(body) : undefined });
     let data = null;
     try { data = await res.json(); } catch { /* not JSON */ }
     return { status: res.status, data };
   }
 
-  async function apiWithAuth(method, query, body) {
-    let r = await api(method, query, body);
+  async function apiWithAuth(kind, method, query, body) {
+    let r = await api(kind, method, query, body);
     let wrong = false;
     while (r.status === 401) {
       if (!(await askPasscode(wrong))) return r;
       wrong = true;
-      r = await api(method, query, body);
+      r = await api(kind, method, query, body);
     }
     return r;
   }
 
-  async function loadSeedFile() {
-    const res = await fetch('/seed.json');
-    if (!res.ok) throw new Error('seed missing');
-    return res.json();
+  let seedCache = null;
+  async function getSeed() {
+    if (!seedCache) {
+      const res = await fetch('/seed.json');
+      if (!res.ok) throw new Error('seed missing');
+      seedCache = await res.json();
+    }
+    return seedCache;
+  }
+  const loadSeedFile = getSeed;
+
+  const itemLabel = (kind, it) => (kind === 'contacts' ? it.party : kind === 'notes' ? it.title || 'that note' : it.title);
+
+  function readLocal(kind) {
+    try { return JSON.parse(store.get(COL[kind].local) || 'null'); } catch { return null; }
+  }
+  function writeLocal(kind) {
+    store.set(COL[kind].local, JSON.stringify(S[kind || 'tasks']));
   }
 
-  function readLocal() {
-    try { return JSON.parse(store.get(LS.local) || 'null'); } catch { return null; }
-  }
-  function writeLocal() {
-    store.set(LS.local, JSON.stringify(S.tasks));
+  async function loadLocal(kind) {
+    const saved = readLocal(kind);
+    if (Array.isArray(saved)) { S[kind] = saved; return true; }
+    const seed = await getSeed();
+    const now = new Date().toISOString();
+    S[kind] = (seed[kind] || []).map((t) => ({ ...t, updatedAt: now, updatedBy: 'Starter plan' }));
+    writeLocal(kind);
+    return true;
   }
 
-  async function loadTasks(initial) {
+  // Load one list (tasks, contacts or notes) from the shared database.
+  async function loadCollection(kind, initial) {
+    if (kind !== 'tasks' && S.mode === 'local') return loadLocal(kind);
     try {
-      const r = await apiWithAuth('GET');
-      if (r.status === 200 && r.data && Array.isArray(r.data.tasks)) {
-        S.mode = 'shared';
-        S.meta = r.data.meta || {};
-        S.tasks = r.data.tasks;
+      const r = await apiWithAuth(kind, 'GET');
+      if (r.status === 200 && r.data && Array.isArray(r.data[COL[kind].list])) {
+        if (kind === 'tasks') { S.mode = 'shared'; S.meta = r.data.meta || {}; }
+        S[kind] = r.data[COL[kind].list];
         S.lastSync = new Date();
         return true;
       }
-      if (!initial) return false;
       throw new Error('no api');
     } catch (e) {
       if (!initial) return false;
-      S.mode = 'local';
-      const saved = readLocal();
-      if (saved && saved.length) {
-        S.tasks = saved;
-      } else {
-        const seed = await loadSeedFile();
-        const now = new Date().toISOString();
-        S.tasks = seed.tasks.map((t) => ({ ...t, updatedAt: now, updatedBy: 'Starter plan' }));
-        writeLocal();
-      }
-      return true;
+      if (kind === 'tasks') { S.mode = 'local'; return loadLocal('tasks'); }
+      return false;
     }
   }
+  const loadTasks = (initial) => loadCollection('tasks', initial);
 
-  // Save full task objects. Applies the change on screen first, then syncs.
-  async function persist(list) {
+  // Save full items. The change appears on screen first, then syncs.
+  async function persistItems(kind, list) {
     if (!(await ensureName())) return false;
     const now = new Date().toISOString();
     const prev = {};
     list.forEach((t) => {
-      const old = S.tasks.find((x) => x.id === t.id);
+      const old = S[kind].find((x) => x.id === t.id);
       prev[t.id] = old ? old.updatedAt : undefined;
       const next = { ...t, updatedAt: now, updatedBy: S.name };
-      if (old) Object.assign(old, next); else S.tasks.push(next);
+      if (old) Object.assign(old, next); else S[kind].push(next);
     });
     render();
 
     if (S.mode === 'local') {
-      writeLocal();
+      writeLocal(kind);
       return true;
     }
 
     S.saving++;
     try {
       const payload = list.map((t) => ({ ...t, base: prev[t.id] }));
-      const r = await apiWithAuth('POST', '', { by: S.name, tasks: payload });
+      const r = await apiWithAuth(kind, 'POST', '', { by: S.name, [COL[kind].list]: payload });
       if (r.status === 200) {
-        r.data.saved.forEach((s) => {
-          const i = S.tasks.findIndex((x) => x.id === s.id);
-          if (i >= 0) S.tasks[i] = s;
+        r.data.saved.forEach((sv) => {
+          const i = S[kind].findIndex((x) => x.id === sv.id);
+          if (i >= 0) S[kind][i] = sv;
         });
         S.lastSync = new Date();
         return true;
       }
       if (r.status === 409) {
         r.data.conflicts.forEach((c) => {
-          const i = S.tasks.findIndex((x) => x.id === c.id);
-          if (i >= 0) S.tasks[i] = c;
-          toast(`${c.updatedBy} changed "${c.title}" a moment ago, so their version is showing. Make your edit again if you still need it.`, 'warn');
+          const i = S[kind].findIndex((x) => x.id === c.id);
+          if (i >= 0) S[kind][i] = c;
+          toast(`${c.updatedBy} changed "${itemLabel(kind, c)}" a moment ago, so their version is showing. Make your edit again if you still need it.`, 'warn');
         });
         return false;
       }
       toast((r.data && r.data.error) || 'That change could not be saved.', 'err');
-      await loadTasks(false);
+      await loadCollection(kind, false);
       return false;
     } catch {
       toast('Could not reach the server, so that change was not saved. Check your connection and try again.', 'err');
-      await loadTasks(false);
+      await loadCollection(kind, false);
       return false;
     } finally {
       S.saving--;
       render();
     }
   }
+  const persist = (list) => persistItems('tasks', list);
 
-  async function removeTask(id) {
+  async function removeItem(kind, id) {
     if (!(await ensureName())) return false;
-    const idx = S.tasks.findIndex((t) => t.id === id);
+    const idx = S[kind].findIndex((t) => t.id === id);
     if (idx < 0) return false;
-    const [gone] = S.tasks.splice(idx, 1);
+    const [gone] = S[kind].splice(idx, 1);
     render();
-    if (S.mode === 'local') { writeLocal(); return true; }
+    if (S.mode === 'local') { writeLocal(kind); return true; }
     try {
-      const r = await apiWithAuth('DELETE', '?id=' + encodeURIComponent(id));
+      const r = await apiWithAuth(kind, 'DELETE', '?id=' + encodeURIComponent(id));
       if (r.status !== 200) throw new Error();
       return true;
     } catch {
-      S.tasks.push(gone);
-      toast('Could not delete that task. Nothing was changed.', 'err');
+      S[kind].push(gone);
+      toast('Could not delete that. Nothing was changed.', 'err');
       render();
       return false;
     }
   }
+  const removeTask = (id) => removeItem('tasks', id);
 
   /* ------------------------------------------------------------------ *
    * Filtering and grouping
@@ -642,15 +666,140 @@
       ? `Last change: ${who.updatedBy} updated "${who.title}".` : '';
   }
 
+  function renderTabs() {
+    const counts = { plan: '', contacts: S.contacts.length, notes: S.notes.length };
+    const labels = { plan: 'Plan', contacts: 'Contacts', notes: 'Notes' };
+    $$('[data-tab]').forEach((b) => {
+      const k = b.dataset.tab;
+      b.setAttribute('aria-current', String(k === S.tab));
+      b.innerHTML = `${labels[k]}${counts[k] !== '' ? ` <span class="n">${counts[k]}</span>` : ''}`;
+    });
+    $('.shell').hidden = S.tab !== 'plan';
+    $('#contactsView').hidden = S.tab !== 'contacts';
+    $('#notesView').hidden = S.tab !== 'notes';
+    $('#btnRebase').hidden = S.tab !== 'plan';
+  }
+
   function render() {
     renderTop();
     renderBanners();
-    renderRail();
-    syncControls();
-    renderStats();
-    renderBoard();
-    renderFoot();
+    renderTabs();
+    if (S.tab === 'contacts') {
+      renderContacts();
+    } else if (S.tab === 'notes') {
+      renderNotes();
+    } else {
+      renderRail();
+      syncControls();
+      renderStats();
+      renderBoard();
+      renderFoot();
+    }
     writeHash();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Contacts and notes views
+   * ------------------------------------------------------------------ */
+  const PHONE_RE = /\+?\d[\d\s().-]{6,}\d/g;
+  const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+  const URL_RE = /https?:\/\/[^\s<]+/g;
+  const isWebUrl = (u) => /^https?:\/\/\S+$/i.test(u || '');
+
+  const phoneHtml = (t) => esc(t).replace(PHONE_RE, (m) => `<a href="tel:${m.replace(/[^\d+]/g, '')}">${m}</a>`);
+  const emailHtml = (t) => esc(t).replace(EMAIL_RE, (m) => `<a href="mailto:${m}">${m}</a>`);
+  function textLinks(t) {
+    return esc(t).replace(URL_RE, (m) => {
+      const url = m.replace(/[.,;:!?)]+$/, '');
+      const tail = m.slice(url.length);
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${tail}`;
+    });
+  }
+  function sourceHtml(u) {
+    if (!isWebUrl(u)) return '';
+    let host = u;
+    try { host = new URL(u).hostname.replace(/^www\./, ''); } catch { /* keep raw */ }
+    return `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" title="${esc(u)}">${esc(host)}</a>`;
+  }
+  const contactCat = (c) => {
+    const m = String(c.role || '').match(/^(.+?)\s[\u2013\u2014-]\s/);
+    return m ? m[1].trim() : 'Other';
+  };
+
+  function filteredContacts() {
+    const q = S.cQ.trim().toLowerCase();
+    return S.contacts
+      .filter((c) => (S.cCat === 'All' || contactCat(c) === S.cCat))
+      .filter((c) => !q || `${c.party} ${c.role} ${c.phone} ${c.email} ${c.address} ${c.notes}`.toLowerCase().includes(q));
+  }
+
+  function renderContacts() {
+    const cats = ['All', ...[...new Set(S.contacts.map(contactCat))]];
+    if (!cats.includes(S.cCat)) S.cCat = 'All';
+    $('#cCats').innerHTML = cats.map((c) => `<button type="button" data-ccat="${esc(c)}" aria-pressed="${S.cCat === c}">${esc(c)}</button>`).join('');
+    if (document.activeElement !== $('#cSearch')) $('#cSearch').value = S.cQ;
+    renderContactRows();
+  }
+
+  function renderContactRows() {
+    const list = filteredContacts();
+    const box = $('#cTable');
+    if (!S.contacts.length) {
+      box.innerHTML = '<div class="empty board"><h3>No contacts yet</h3><p>Add the first person or company the team might need to reach.</p></div>';
+      return;
+    }
+    if (!list.length) {
+      box.innerHTML = '<div class="empty board"><h3>No contacts match</h3><p>Clear the search or choose another type.</p></div>';
+      return;
+    }
+    const cell = (label, html, cls) => html
+      ? `<td class="${cls || ''}" data-label="${label}">${html}</td>`
+      : `<td class="${cls || ''} empty" data-label="${label}"><span class="dash">\u2014</span></td>`;
+    box.innerHTML = `<div class="ctable-wrap"><table class="ctable"><thead><tr>
+      <th>Responsible party</th><th>Role / area</th><th>Phone</th><th>Email</th><th>Address</th><th>Notes</th><th>Source</th><th><span class="sr">Edit</span></th>
+      </tr></thead><tbody>${list.map((c) => `<tr data-id="${esc(c.id)}">
+        <td class="c-party" data-label="Responsible party">${esc(c.party)}</td>
+        ${cell('Role / area', esc(c.role), 'c-role')}
+        ${cell('Phone', phoneHtml(c.phone), 'c-phone')}
+        ${cell('Email', emailHtml(c.email))}
+        ${cell('Address', esc(c.address))}
+        ${cell('Notes', esc(c.notes))}
+        ${cell('Source', sourceHtml(c.source))}
+        <td class="c-act"><button class="btn" type="button" data-act="edit-contact" aria-label="Edit ${esc(c.party)}">Edit</button></td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function filteredNotes() {
+    const q = S.nQ.trim().toLowerCase();
+    return S.notes
+      .filter((n) => !q || `${n.title} ${n.body}`.toLowerCase().includes(q))
+      .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  }
+
+  function renderNotes() {
+    if (document.activeElement !== $('#nSearch')) $('#nSearch').value = S.nQ;
+    renderNoteList();
+  }
+
+  function renderNoteList() {
+    const list = filteredNotes();
+    const box = $('#nList');
+    if (!S.notes.length) {
+      box.innerHTML = '<div class="empty board"><h3>No notes yet</h3><p>Use notes for booth ideas, decisions from meetings, or reminders everyone should see.</p></div>';
+      return;
+    }
+    if (!list.length) {
+      box.innerHTML = '<div class="empty board"><h3>No notes match that search</h3></div>';
+      return;
+    }
+    box.innerHTML = list.map((n) => {
+      const when = n.updatedAt ? new Date(n.updatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+      return `<article class="note${n.pinned ? ' pinned' : ''}" data-id="${esc(n.id)}">
+        <header><h3${n.title ? '' : ' class="untitled"'}>${esc(n.title || 'Untitled note')}</h3>${n.pinned ? '<span class="pin-tag">Pinned</span>' : ''}
+          <button class="btn" type="button" data-act="edit-note" aria-label="Edit note ${esc(n.title || '')}">Edit</button></header>
+        ${n.body ? `<div class="note-body">${textLinks(n.body)}</div>` : ''}
+        <footer>${esc(n.updatedBy || '')}${when ? ', ' + esc(when) : ''}</footer></article>`;
+    }).join('');
   }
 
   /* ------------------------------------------------------------------ *
@@ -706,6 +855,7 @@
     d.hidden = false;
     S.drawerOpen = true;
     d.dataset.id = base.id;
+    d.dataset.kind = 'tasks';
     d.dataset.new = isNew ? '1' : '';
     d._base = task || null;
 
@@ -751,6 +901,115 @@
     closeDrawer();
     const ok = await persist([task]);
     if (ok) toast(d.dataset.new ? 'Task added.' : 'Changes saved.');
+  }
+
+  function newId(prefix) {
+    return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  }
+
+  function showDrawer(kind, id, isNew, baseItem) {
+    const d = $('#drawer');
+    $('#backdrop').hidden = false;
+    d.hidden = false;
+    S.drawerOpen = true;
+    d.dataset.id = id;
+    d.dataset.kind = kind;
+    d.dataset.new = isNew ? '1' : '';
+    d._base = baseItem || null;
+    return d;
+  }
+
+  const changedLine = (it) => `Last changed by ${esc(it.updatedBy || 'unknown')}${it.updatedAt ? ' on ' + esc(new Date(it.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) : ''}`;
+
+  function drawerFoot(isNew, saveLabel) {
+    return `<div class="dr-foot">
+      <button class="btn primary" type="submit">${saveLabel}</button>
+      <button class="btn" type="button" data-act="close">Cancel</button>
+      <span class="sp"></span>
+      ${isNew ? '' : '<button class="btn danger" type="button" data-act="delete">Delete</button>'}
+    </div>`;
+  }
+
+  function openContactDrawer(c) {
+    const isNew = !c;
+    const base = c || { id: newId('c'), party: '', role: '', phone: '', email: '', address: '', notes: '', source: '' };
+    const d = $('#drawer');
+    d.innerHTML = `<form novalidate>
+      <div class="dr-head"><div><h2 id="drawerTitle">${isNew ? 'Add a contact' : 'Edit contact'}</h2>
+        <p>${isNew ? 'It will appear for everyone on the team.' : changedLine(c)}</p></div>
+        <button class="dr-x" type="button" data-act="close" aria-label="Close">\u00D7</button></div>
+      <div class="dr-body">
+        <div class="fld"><label for="cfParty">Responsible party</label><input id="cfParty" name="party" type="text" maxlength="120" value="${esc(base.party)}" required></div>
+        <div class="fld"><label for="cfRole">Role / area</label><input id="cfRole" name="role" type="text" maxlength="160" value="${esc(base.role)}" placeholder="Venue \u2013 Exhibitor services"><span class="hint">Start with a type and a dash, like Organizer \u2013, Venue \u2013 or Platform \u2013, and the contact appears under that filter.</span></div>
+        <div class="two">
+          <div class="fld"><label for="cfPhone">Phone</label><input id="cfPhone" name="phone" type="text" maxlength="120" value="${esc(base.phone)}" placeholder="+1 604-555-0100"></div>
+          <div class="fld"><label for="cfEmail">Email</label><input id="cfEmail" name="email" type="text" maxlength="160" value="${esc(base.email)}" placeholder="name@example.com"></div>
+        </div>
+        <div class="fld"><label for="cfAddress">Address</label><textarea class="short" id="cfAddress" name="address" maxlength="240">${esc(base.address)}</textarea></div>
+        <div class="fld"><label for="cfNotes">Notes</label><textarea id="cfNotes" name="notes" maxlength="1000">${esc(base.notes)}</textarea></div>
+        <div class="fld"><label for="cfSource">Source (web address)</label><input id="cfSource" name="source" type="text" inputmode="url" maxlength="500" value="${esc(base.source)}" placeholder="https://"></div>
+        <div class="errmsg" id="drErr" role="alert"></div>
+      </div>${drawerFoot(isNew, isNew ? 'Add contact' : 'Save changes')}</form>`;
+    showDrawer('contacts', base.id, isNew, c);
+    const form = $('form', d);
+    form.addEventListener('submit', (ev) => { ev.preventDefault(); submitContactDrawer(form); });
+    $('#cfParty', d).focus();
+  }
+
+  async function submitContactDrawer(form) {
+    const d = $('#drawer');
+    const fd = new FormData(form);
+    const err = $('#drErr', d);
+    const party = String(fd.get('party') || '').trim();
+    const source = String(fd.get('source') || '').trim();
+    if (!party) { err.textContent = 'Give the contact a name.'; $('#cfParty', d).focus(); return; }
+    if (source && !isWebUrl(source)) { err.textContent = 'The source must be a web address starting with http:// or https://'; $('#cfSource', d).focus(); return; }
+    const item = {
+      id: d.dataset.id, party,
+      role: String(fd.get('role') || '').trim(),
+      phone: String(fd.get('phone') || '').trim(),
+      email: String(fd.get('email') || '').trim(),
+      address: String(fd.get('address') || '').trim(),
+      notes: String(fd.get('notes') || '').trim(),
+      source,
+    };
+    if (!(await ensureName())) return;
+    const isNew = !!d.dataset.new;
+    closeDrawer();
+    if (await persistItems('contacts', [item])) toast(isNew ? 'Contact added.' : 'Changes saved.');
+  }
+
+  function openNoteDrawer(n) {
+    const isNew = !n;
+    const base = n || { id: newId('n'), title: '', body: '', pinned: false };
+    const d = $('#drawer');
+    d.innerHTML = `<form novalidate>
+      <div class="dr-head"><div><h2 id="drawerTitle">${isNew ? 'Add a note' : 'Edit note'}</h2>
+        <p>${isNew ? 'Everyone on the plan can read it.' : changedLine(n)}</p></div>
+        <button class="dr-x" type="button" data-act="close" aria-label="Close">\u00D7</button></div>
+      <div class="dr-body">
+        <div class="fld"><label for="nfTitle">Title (optional)</label><input id="nfTitle" name="title" type="text" maxlength="120" value="${esc(base.title)}" placeholder="Booth ideas, meeting decisions"></div>
+        <div class="fld"><label for="nfBody">Note</label><textarea class="tall" id="nfBody" name="body" maxlength="5000">${esc(base.body)}</textarea></div>
+        <label class="check"><input type="checkbox" name="pinned"${base.pinned ? ' checked' : ''}> Pin to the top</label>
+        <div class="errmsg" id="drErr" role="alert"></div>
+      </div>${drawerFoot(isNew, isNew ? 'Add note' : 'Save changes')}</form>`;
+    showDrawer('notes', base.id, isNew, n);
+    const form = $('form', d);
+    form.addEventListener('submit', (ev) => { ev.preventDefault(); submitNoteDrawer(form); });
+    $('#nfBody', d).focus();
+  }
+
+  async function submitNoteDrawer(form) {
+    const d = $('#drawer');
+    const fd = new FormData(form);
+    const title = String(fd.get('title') || '').trim();
+    const body = String(fd.get('body') || '').trim();
+    if (!title && !body) { $('#drErr', d).textContent = 'Write something in the note first.'; $('#nfBody', d).focus(); return; }
+    const item = { id: d.dataset.id, title, body, pinned: fd.get('pinned') === 'on' };
+    if (!(await ensureName())) return;
+    const isNew = !!d.dataset.new;
+    closeDrawer();
+    if (await persistItems('notes', [item])) toast(isNew ? 'Note added.' : 'Changes saved.');
   }
 
   /* ------------------------------------------------------------------ *
@@ -807,18 +1066,37 @@
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
-  function exportCsv() {
-    const rows = visibleTasks().sort(byDate);
-    const head = ['Task', 'Owners', 'Phase', 'Start', 'Due', 'Status', 'Priority', 'Organizer date', 'Notes', 'Last changed by', 'Last changed'];
-    const lines = [head, ...rows.map((t) => [t.title, t.owners.join(' / '), t.phase, t.start, t.end, t.reference ? 'Reference' : t.status, t.priority, t.reference ? 'Yes' : '', t.notes, t.updatedBy || '', t.updatedAt || ''])];
+  function downloadCsv(lines, filename) {
     const csv = '\uFEFF' + lines.map((r) => r.map(csvCell).join(',')).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const dept = S.filters.dept === 'All' ? 'all' : S.filters.dept === '__ref' ? 'organizer' : slug(S.filters.dept);
-    a.download = `pdc-planner-${dept}-${toIso(todayDay)}.csv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  function exportCsv() {
+    const day = toIso(todayDay);
+    if (S.tab === 'contacts') {
+      const rows = filteredContacts();
+      return downloadCsv([
+        ['Responsible party', 'Role / area', 'Phone', 'Email', 'Address', 'Notes', 'Source'],
+        ...rows.map((c) => [c.party, c.role, c.phone, c.email, c.address, c.notes, c.source]),
+      ], `pdc-contacts-${day}.csv`);
+    }
+    if (S.tab === 'notes') {
+      const rows = filteredNotes();
+      return downloadCsv([
+        ['Title', 'Note', 'Pinned', 'Last changed by', 'Last changed'],
+        ...rows.map((n) => [n.title, n.body, n.pinned ? 'Yes' : '', n.updatedBy || '', n.updatedAt || '']),
+      ], `pdc-notes-${day}.csv`);
+    }
+    const rows = visibleTasks().sort(byDate);
+    const head = ['Task', 'Owners', 'Phase', 'Start', 'Due', 'Status', 'Priority', 'Organizer date', 'Notes', 'Last changed by', 'Last changed'];
+    const dept = S.filters.dept === 'All' ? 'all' : S.filters.dept === '__ref' ? 'organizer' : slug(S.filters.dept);
+    downloadCsv([head, ...rows.map((t) => [t.title, t.owners.join(' / '), t.phase, t.start, t.end, t.reference ? 'Reference' : t.status, t.priority, t.reference ? 'Yes' : '', t.notes, t.updatedBy || '', t.updatedAt || ''])],
+      `pdc-planner-${dept}-${day}.csv`);
   }
 
   async function quickStatus(id, status) {
@@ -833,6 +1111,7 @@
   function writeHash() {
     const p = new URLSearchParams();
     if (S.filters.dept !== 'All') p.set('team', S.filters.dept);
+    if (S.tab !== 'plan') p.set('tab', S.tab);
     if (S.view !== 'timeline') p.set('view', S.view);
     if (S.zoom !== 'week') p.set('zoom', S.zoom);
     if (S.group !== 'department') p.set('group', S.group);
@@ -843,6 +1122,7 @@
 
   function readHash() {
     const p = new URLSearchParams(location.hash.replace(/^#/, ''));
+    S.tab = ['contacts', 'notes'].includes(p.get('tab')) ? p.get('tab') : 'plan';
     if (p.get('team')) S.filters.dept = p.get('team');
     if (['timeline', 'list'].includes(p.get('view'))) S.view = p.get('view');
     if (ZOOM_PX[p.get('zoom')]) S.zoom = p.get('zoom');
@@ -855,8 +1135,11 @@
    * ------------------------------------------------------------------ */
   function bind() {
     document.addEventListener('click', async (ev) => {
-      const el = ev.target.closest('[data-act], [data-dept], [data-view], [data-zoom]');
+      const el = ev.target.closest('[data-act], [data-dept], [data-view], [data-zoom], [data-tab], [data-ccat]');
       if (!el) return;
+
+      if (el.dataset.tab) { S.tab = el.dataset.tab; S.needFocus = true; render(); refresh(); return; }
+      if (el.dataset.ccat) { S.cCat = el.dataset.ccat; renderContacts(); return; }
 
       if (el.dataset.dept) { S.filters.dept = el.dataset.dept; S.needFocus = true; render(); return; }
       if (el.dataset.view) { S.view = el.dataset.view; S.needFocus = true; render(); return; }
@@ -867,6 +1150,8 @@
 
       switch (el.dataset.act) {
         case 'open': if (task) openDrawer(task); break;
+        case 'edit-contact': { const c = row && S.contacts.find((x) => x.id === row.dataset.id); if (c) openContactDrawer(c); break; }
+        case 'edit-note': { const n = row && S.notes.find((x) => x.id === row.dataset.id); if (n) openNoteDrawer(n); break; }
         case 'toggle': if (task) await persist([{ ...task, status: isDone(task) ? 'Not Started' : 'Done' }]); break;
         case 'collapse': {
           const k = el.dataset.key;
@@ -887,11 +1172,14 @@
           break;
         }
         case 'delete': {
-          const id = $('#drawer').dataset.id;
-          const t = S.tasks.find((x) => x.id === id);
-          if (t && await confirmDialog('Delete this task?', `"${t.title}" will be removed for everyone. This cannot be undone.`, 'Delete task')) {
+          const d = $('#drawer');
+          const kind = d.dataset.kind || 'tasks';
+          const id = d.dataset.id;
+          const item = S[kind].find((x) => x.id === id);
+          const noun = { tasks: 'task', contacts: 'contact', notes: 'note' }[kind];
+          if (item && await confirmDialog(`Delete this ${noun}?`, `"${itemLabel(kind, item)}" will be removed for everyone. This cannot be undone.`, `Delete ${noun}`)) {
             closeDrawer();
-            if (await removeTask(id)) toast('Task deleted.');
+            if (await removeItem(kind, id)) toast(`${noun[0].toUpperCase() + noun.slice(1)} deleted.`);
           }
           break;
         }
@@ -922,6 +1210,11 @@
       timer = setTimeout(() => { S.filters.q = e.target.value; renderStats(); renderBoard(); }, 120);
     });
     $('#btnAdd').addEventListener('click', () => openDrawer(null));
+    $('#btnAddContact').addEventListener('click', () => openContactDrawer(null));
+    $('#btnAddNote').addEventListener('click', () => openNoteDrawer(null));
+    let cTimer, nTimer;
+    $('#cSearch').addEventListener('input', (e) => { clearTimeout(cTimer); cTimer = setTimeout(() => { S.cQ = e.target.value; renderContactRows(); }, 120); });
+    $('#nSearch').addEventListener('input', (e) => { clearTimeout(nTimer); nTimer = setTimeout(() => { S.nQ = e.target.value; renderNoteList(); }, 120); });
     $('#btnRebase').addEventListener('click', openRebase);
     $('#btnExport').addEventListener('click', exportCsv);
     $('#btnPrint').addEventListener('click', () => window.print());
@@ -935,10 +1228,11 @@
   // Quietly pull in other people's changes.
   async function refresh() {
     if (S.mode !== 'shared' || S.drawerOpen || S.saving || $('#dlg').open) return;
-    const before = JSON.stringify(S.tasks.map((t) => [t.id, t.updatedAt]).sort());
-    if (await loadTasks(false)) {
-      const after = JSON.stringify(S.tasks.map((t) => [t.id, t.updatedAt]).sort());
-      if (before !== after) render(); else renderTop();
+    const kind = S.tab === 'plan' ? 'tasks' : S.tab;
+    const sig = () => JSON.stringify(S[kind].map((t) => [t.id, t.updatedAt]).sort());
+    const before = sig();
+    if (await loadCollection(kind, false)) {
+      if (before !== sig()) render(); else renderTop();
     }
   }
 
@@ -952,7 +1246,9 @@
       const seed = await loadSeedFile();
       if (seed.event) S.seedEvent = seed.event;
     } catch { /* keep defaults */ }
-    await loadTasks(true);
+    await loadCollection('tasks', true);
+    const [okC, okN] = await Promise.all([loadCollection('contacts', true), loadCollection('notes', true)]);
+    if (S.mode === 'shared' && !(okC && okN)) toast('The contact list or notes could not load. Refresh the page in a minute.', 'warn');
     if (S.filters.dept !== 'All' && S.filters.dept !== '__ref' && !deptList().includes(S.filters.dept)) S.filters.dept = 'All';
     render();
   }

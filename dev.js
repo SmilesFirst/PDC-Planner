@@ -6,7 +6,11 @@ process.env.PDC_LOCAL_STORE = process.env.PDC_LOCAL_STORE || '1';
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const handler = require('./api/tasks.js');
+const handlers = {
+  '/api/tasks': require('./api/tasks.js'),
+  '/api/contacts': require('./api/contacts.js'),
+  '/api/notes': require('./api/notes.js'),
+};
 
 const PUBLIC = path.join(__dirname, 'public');
 const TYPES = {
@@ -21,7 +25,7 @@ const TYPES = {
 http
   .createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname;
-    if (pathname === '/api/tasks') return handler(req, res);
+    if (handlers[pathname]) return handlers[pathname](req, res);
     const file = path.join(PUBLIC, pathname === '/' ? 'index.html' : pathname);
     if (!file.startsWith(PUBLIC) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.statusCode = 404;

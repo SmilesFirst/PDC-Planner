@@ -282,6 +282,54 @@ button { cursor: pointer; }
 .toast.warn { background: #7a4b00; }
 .toast.err { background: #8e1f1f; }
 
+/* ---------- Tabs ---------- */
+.tabs { display: flex; gap: 4px; padding: 0 24px; background: var(--ink); }
+.tabs button {
+  border: 0; background: transparent; color: #b9c9d6; padding: 10px 18px; font: 600 14px var(--body);
+  border-radius: 9px 9px 0 0; display: flex; gap: 8px; align-items: center;
+}
+.tabs button:hover { color: #fff; background: #1b3349; }
+.tabs button[aria-current="true"] { background: var(--paper); color: var(--ink); }
+.tabs .n { font-size: 11.5px; background: #2a4560; color: #d6e3ee; border-radius: 999px; padding: 0 7px; line-height: 18px; }
+.tabs button[aria-current="true"] .n { background: #dbe3e9; color: var(--ink-2); }
+
+/* ---------- Contacts and notes pages ---------- */
+.page { padding: 20px 24px 40px; }
+.page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 16px; margin-bottom: 14px; }
+.page-head h2 { margin: 0; font: 800 20px var(--head); }
+.page-head p { margin: 2px 0 0; color: var(--ink-3); font-size: 13px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ctable-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: auto; }
+.ctable { width: 100%; border-collapse: collapse; min-width: 1060px; font-size: 13px; }
+.ctable th {
+  position: sticky; top: 0; background: #eef3f6; text-align: left; font: 600 12px var(--body); color: var(--ink-2);
+  padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.ctable td { padding: 12px; border-bottom: 1px solid var(--grid); vertical-align: top; overflow-wrap: anywhere; }
+.ctable tbody tr:last-child td { border-bottom: 0; }
+.ctable tbody tr:hover { background: #f7fafc; }
+.ctable .c-party { font-weight: 600; min-width: 170px; }
+.ctable .c-role { min-width: 150px; color: var(--ink-2); }
+.ctable .c-phone { min-width: 140px; }
+.ctable a { color: var(--sea); }
+.ctable .dash { color: #a3b1bd; }
+.ctable .btn { padding: 4px 10px; font-size: 12.5px; }
+
+.notes-list { display: grid; gap: 12px; max-width: 780px; }
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.note.pinned { border-color: #e3c46a; background: #fffaf0; }
+.note header { display: flex; gap: 10px; align-items: center; }
+.note h3 { margin: 0; font: 700 15px var(--head); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.note h3.untitled { color: var(--ink-3); font-weight: 600; }
+.pin-tag { font-size: 11.5px; background: #fff0cc; color: #7a5200; border-radius: 4px; padding: 0 6px; white-space: nowrap; }
+.note-body { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 6px; color: var(--ink-2); }
+.note-body a { color: var(--sea); }
+.note footer { margin-top: 10px; font-size: 12px; color: var(--ink-3); }
+.note .btn { padding: 4px 10px; font-size: 12.5px; }
+.fld textarea.tall { min-height: 220px; }
+.fld textarea.short { min-height: 56px; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
   :root { --label-w: 190px; }
@@ -296,6 +344,20 @@ button { cursor: pointer; }
   .li .due { grid-column: 2 / 3; text-align: left; }
   .li .pri, .li select { grid-row: 1; }
   .meter { flex-basis: 100%; }
+  .tabs { padding: 0 14px; }
+  .tabs button { padding: 10px 14px; }
+  .page { padding: 14px 14px 32px; }
+  .ctable-wrap { border: 0; background: transparent; }
+  .ctable { min-width: 0; }
+  .ctable thead { display: none; }
+  .ctable tbody tr { display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .ctable td { display: grid; grid-template-columns: 92px 1fr; gap: 8px; border: 0; padding: 3px 0; min-width: 0 !important; }
+  .ctable td::before { content: attr(data-label); color: var(--ink-3); font-size: 12px; }
+  .ctable td.empty { display: none; }
+  .ctable td.c-party { display: block; font-size: 15px; padding-bottom: 4px; }
+  .ctable td.c-party::before { display: none; }
+  .ctable td.c-act { display: block; padding-top: 8px; }
+  .ctable td.c-act::before { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -313,5 +375,10 @@ button { cursor: pointer; }
   .board { border: 0; }
   .scroller { overflow: visible; max-height: none; }
   .tl-head, .tl-corner, .cell-label { position: static; }
+  .tabs, .page .toolbar, .page-head .btn, .ctable .btn, .note .btn { display: none !important; }
+  .page { padding: 0; }
+  .ctable { min-width: 0; font-size: 11px; }
+  .ctable th { position: static; }
+  .ctable-wrap { overflow: visible; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

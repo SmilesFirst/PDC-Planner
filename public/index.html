@@ -26,6 +26,12 @@
     </div>
   </header>
 
+  <nav class="tabs" aria-label="Sections">
+    <button type="button" data-tab="plan">Plan</button>
+    <button type="button" data-tab="contacts">Contacts</button>
+    <button type="button" data-tab="notes">Notes</button>
+  </nav>
+
   <div id="banners"></div>
 
   <div class="shell">
@@ -81,6 +87,39 @@
       <p class="foot" id="foot"></p>
     </main>
   </div>
+
+  <section id="contactsView" class="page" hidden aria-label="Contact list">
+    <div class="page-head">
+      <div>
+        <h2>Contact list</h2>
+        <p>Who to call or email for what. Click a phone number to call and an email to write.</p>
+      </div>
+      <button class="btn primary" id="btnAddContact" type="button">Add contact</button>
+    </div>
+    <div class="toolbar">
+      <label class="field grow-field">Search
+        <input id="cSearch" type="search" placeholder="Name, role, phone or email" autocomplete="off">
+      </label>
+      <div class="seg" id="cCats" role="group" aria-label="Filter by type"></div>
+    </div>
+    <div id="cTable"></div>
+  </section>
+
+  <section id="notesView" class="page" hidden aria-label="Notes">
+    <div class="page-head">
+      <div>
+        <h2>Notes</h2>
+        <p>Ideas, decisions and reminders for the whole team that don't belong on a single task.</p>
+      </div>
+      <button class="btn primary" id="btnAddNote" type="button">Add note</button>
+    </div>
+    <div class="toolbar">
+      <label class="field grow-field">Search
+        <input id="nSearch" type="search" placeholder="Search notes" autocomplete="off">
+      </label>
+    </div>
+    <div id="nList" class="notes-list"></div>
+  </section>
 
   <div id="backdrop" class="backdrop" hidden></div>
   <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden></aside>

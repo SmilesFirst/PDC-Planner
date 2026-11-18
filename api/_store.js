@@ -107,6 +107,18 @@ function makeStore(name) {
     await cmd(args);
   }
 
+  // Save only if nothing is stored under this id yet. Returns true if it was saved.
+  async function setIfAbsent(item) {
+    if (LOCAL) {
+      const all = readLocal();
+      if (all[item.id]) return false;
+      all[item.id] = item;
+      writeLocal(all);
+      return true;
+    }
+    return (await cmd(['HSETNX', KEY, item.id, JSON.stringify(item)])) === 1;
+  }
+
   async function del(id) {
     if (LOCAL) {
       const all = readLocal();
@@ -135,7 +147,7 @@ function makeStore(name) {
     return r === 1;
   }
 
-  return { getAll, getMany, setMany, del, clear, claimSeed };
+  return { getAll, getMany, setMany, setIfAbsent, del, clear, claimSeed };
 }
 
 module.exports = { available, kind, makeStore };

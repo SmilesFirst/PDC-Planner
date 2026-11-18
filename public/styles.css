@@ -330,6 +330,24 @@ button { cursor: pointer; }
 .fld textarea.tall { min-height: 220px; }
 .fld textarea.short { min-height: 56px; }
 
+/* ---------- Credentials ---------- */
+.head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cred-warn { background: #fff4d6; border: 1px solid #ecd58b; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; color: #4a3a05; max-width: 760px; margin: 0 0 14px; }
+.vault-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; max-width: 560px; margin-bottom: 16px; }
+.vault-panel h3 { margin: 0 0 4px; font: 800 16px var(--head); }
+.vault-panel p { margin: 0 0 12px; color: var(--ink-2); }
+.vault-panel form { display: grid; gap: 10px; }
+.vault-panel input[type="password"] { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
+.vault-panel .hint { margin: 0; }
+.vault-err { color: var(--over); font-size: 12.5px; font-weight: 600; min-height: 1em; }
+.unlocked-note { color: var(--ink-3); font-size: 12.5px; margin: 0 0 12px; }
+.secret { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.secret code { font: 500 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef3f6; border-radius: 4px; padding: 1px 6px; overflow-wrap: anywhere; }
+.secret .btn { padding: 2px 8px; font-size: 12px; }
+.locked-cell { color: var(--ink-3); }
+.row-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.row-btns .btn { padding: 4px 10px; font-size: 12.5px; }
+
 /* ---------- Small screens ---------- */
 @media (max-width: 860px) {
   :root { --label-w: 190px; }
@@ -376,6 +394,7 @@ button { cursor: pointer; }
   .scroller { overflow: visible; max-height: none; }
   .tl-head, .tl-corner, .cell-label { position: static; }
   .tabs, .page .toolbar, .page-head .btn, .ctable .btn, .note .btn { display: none !important; }
+  #credsView { display: none !important; }
   .page { padding: 0; }
   .ctable { min-width: 0; font-size: 11px; }
   .ctable th { position: static; }

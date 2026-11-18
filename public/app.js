@@ -18,12 +18,14 @@
     local: 'pdc.local.tasks',
     localContacts: 'pdc.local.contacts',
     localNotes: 'pdc.local.notes',
+    localCredentials: 'pdc.local.credentials',
     banner: 'pdc.banner.dismissed',
   };
   const COL = {
     tasks: { list: 'tasks', local: LS.local },
     contacts: { list: 'contacts', local: LS.localContacts },
     notes: { list: 'notes', local: LS.localNotes },
+    credentials: { list: 'credentials', local: LS.localCredentials },
   };
 
   /* ------------------------------------------------------------------ *
@@ -50,9 +52,12 @@
     drawerOpen: false,
     saving: 0,
     needFocus: true,
-    tab: 'plan', // 'plan' | 'contacts' | 'notes'
+    tab: 'plan', // 'plan' | 'contacts' | 'notes' | 'credentials'
     contacts: [],
     notes: [],
+    credentials: [],
+    credsLoaded: false,
+    crQ: '',
     cCat: 'All',
     cQ: '',
     nQ: '',
@@ -220,7 +225,7 @@
   }
   const loadSeedFile = getSeed;
 
-  const itemLabel = (kind, it) => (kind === 'contacts' ? it.party : kind === 'notes' ? it.title || 'that note' : it.title);
+  const itemLabel = (kind, it) => (kind === 'contacts' ? it.party : kind === 'notes' ? it.title || 'that note' : kind === 'credentials' ? it.site : it.title);
 
   function readLocal(kind) {
     try { return JSON.parse(store.get(COL[kind].local) || 'null'); } catch { return null; }
@@ -260,7 +265,7 @@
   const loadTasks = (initial) => loadCollection('tasks', initial);
 
   // Save full items. The change appears on screen first, then syncs.
-  async function persistItems(kind, list) {
+  async function persistItems(kind, list, opts = {}) {
     if (!(await ensureName())) return false;
     const now = new Date().toISOString();
     const prev = {};
@@ -279,7 +284,7 @@
 
     S.saving++;
     try {
-      const payload = list.map((t) => ({ ...t, base: prev[t.id] }));
+      const payload = list.map((t) => ({ ...t, base: opts.createOnly ? '' : prev[t.id] }));
       const r = await apiWithAuth(kind, 'POST', '', { by: S.name, [COL[kind].list]: payload });
       if (r.status === 200) {
         r.data.saved.forEach((sv) => {
@@ -667,8 +672,8 @@
   }
 
   function renderTabs() {
-    const counts = { plan: '', contacts: S.contacts.length, notes: S.notes.length };
-    const labels = { plan: 'Plan', contacts: 'Contacts', notes: 'Notes' };
+    const counts = { plan: '', contacts: S.contacts.length, notes: S.notes.length, credentials: S.credsLoaded ? credItems().length : '' };
+    const labels = { plan: 'Plan', contacts: 'Contacts', notes: 'Notes', credentials: 'Credentials' };
     $$('[data-tab]').forEach((b) => {
       const k = b.dataset.tab;
       b.setAttribute('aria-current', String(k === S.tab));
@@ -677,7 +682,11 @@
     $('.shell').hidden = S.tab !== 'plan';
     $('#contactsView').hidden = S.tab !== 'contacts';
     $('#notesView').hidden = S.tab !== 'notes';
+    $('#credsView').hidden = S.tab !== 'credentials';
     $('#btnRebase').hidden = S.tab !== 'plan';
+    // Never export or print the vault page.
+    $('#btnExport').hidden = S.tab === 'credentials';
+    $('#btnPrint').hidden = S.tab === 'credentials';
   }
 
   function render() {
@@ -688,6 +697,8 @@
       renderContacts();
     } else if (S.tab === 'notes') {
       renderNotes();
+    } else if (S.tab === 'credentials') {
+      renderCredentials();
     } else {
       renderRail();
       syncControls();
@@ -803,6 +814,362 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * Credentials vault
+   *
+   * Usernames, passwords and notes are encrypted in the browser with a key made
+   * from the team passphrase (PBKDF2 -> AES-GCM). The server and database only
+   * ever see scrambled data, and the passphrase is never sent anywhere.
+   * ------------------------------------------------------------------ */
+  const VAULT_ID = 'vault-meta';
+  const CHECK_TEXT = 'pdc-vault-ok';
+  const KDF_ITER = 600000;
+  const LOCK_MS = 10 * 60 * 1000;
+  const V = { key: null, cache: new Map(), revealed: new Map(), last: 0, busy: false, panelState: '', loadFailed: false };
+
+  const te = new TextEncoder();
+  const td = new TextDecoder();
+  const b64 = (buf) => { let s = ''; new Uint8Array(buf).forEach((c) => { s += String.fromCharCode(c); }); return btoa(s); };
+  const unb64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+  const normPass = (p) => String(p || '').normalize('NFKC');
+
+  async function deriveKey(pass, saltB64, iterations) {
+    const base = await crypto.subtle.importKey('raw', te.encode(normPass(pass)), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: unb64(saltB64), iterations, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  // The record id is bound to the ciphertext, so blobs can't be swapped between records.
+  async function seal(key, obj, aad) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: te.encode(aad) }, key, te.encode(JSON.stringify(obj)));
+    return { iv: b64(iv), ct: b64(ct) };
+  }
+  async function openBlob(key, blob, aad) {
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(blob.iv), additionalData: te.encode(aad) }, key, unb64(blob.ct));
+    return JSON.parse(td.decode(pt));
+  }
+
+  function randomPassword(len) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_=+';
+    const limit = Math.floor(256 / chars.length) * chars.length; // avoids modulo bias
+    let out = '';
+    while (out.length < len) {
+      crypto.getRandomValues(new Uint8Array(len * 2)).forEach((b) => { if (out.length < len && b < limit) out += chars[b % chars.length]; });
+    }
+    return out;
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return; } catch { /* fall back */ }
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch { /* nothing else to try */ }
+    ta.remove();
+  }
+
+  function vaultMeta() { return S.credentials.find((c) => c.id === VAULT_ID) || null; }
+  function credItems() { return S.credentials.filter((c) => c.id !== VAULT_ID); }
+
+  async function decryptAll() {
+    V.cache.clear();
+    for (const it of credItems()) {
+      try { V.cache.set(it.id, await openBlob(V.key, it.secret, it.id)); } catch { V.cache.set(it.id, { error: true }); }
+    }
+  }
+
+  async function keyStillValid() {
+    const meta = vaultMeta();
+    if (!meta || !V.key) return false;
+    try { return (await openBlob(V.key, meta.check, VAULT_ID)).ok === CHECK_TEXT; } catch { return false; }
+  }
+
+  function lockVault(msg) {
+    V.key = null;
+    V.cache.clear();
+    V.revealed.forEach((t) => clearTimeout(t));
+    V.revealed.clear();
+    V.panelState = '';
+    if (S.drawerOpen && $('#drawer').dataset.kind === 'credentials') closeDrawer();
+    render();
+    if (msg) toast(msg);
+  }
+
+  async function ensureCredsLoaded() {
+    const ok = await loadCollection('credentials', true);
+    S.credsLoaded = ok;
+    V.loadFailed = !ok;
+  }
+
+  function credState() {
+    if (V.loadFailed) return 'error';
+    if (!S.credsLoaded) return 'loading';
+    if (!(window.crypto && window.crypto.subtle)) return 'nocrypto';
+    if (!vaultMeta()) return 'setup';
+    return V.key ? 'open' : 'locked';
+  }
+
+  function panelHtml(state) {
+    const wrap = (inner) => `<div class="vault-panel">${inner}</div>`;
+    if (state === 'loading') return wrap('<p>Loading</p>');
+    if (state === 'error') return wrap('<h3>Could not load credentials</h3><p>Refresh the page in a minute. If it keeps happening, tell the planner owner.</p>');
+    if (state === 'nocrypto') return wrap('<h3>A secure connection is needed</h3><p>This section only works on a secure (https) page, because it relies on your browser\u2019s built-in encryption.</p>');
+    if (state === 'setup') return wrap(`<h3>Set up the shared vault</h3>
+      <p>Choose one team passphrase. It scrambles every username, password and note before it is saved, and nobody can read them without it.</p>
+      <form data-form="vault-setup" autocomplete="off">
+        <input type="password" name="pass" placeholder="Passphrase (12 or more characters)" autocomplete="new-password" aria-label="Passphrase">
+        <input type="password" name="pass2" placeholder="Repeat the passphrase" autocomplete="new-password" aria-label="Repeat the passphrase">
+        <p class="hint">Four or more random words works well. There is no way to recover a lost passphrase, so keep it somewhere safe and share it only with people who need these logins.</p>
+        <div class="vault-err" id="vaultErr" role="alert"></div>
+        <div class="row-btns"><button class="btn primary" type="submit">Create vault</button></div>
+      </form>`);
+    if (state === 'locked') return wrap(`<h3>The vault is locked</h3>
+      <p>Enter the team passphrase to see usernames and passwords.</p>
+      <form data-form="vault-unlock" autocomplete="off">
+        <input type="password" name="pass" placeholder="Team passphrase" autocomplete="current-password" aria-label="Team passphrase">
+        <div class="vault-err" id="vaultErr" role="alert"></div>
+        <div class="row-btns"><button class="btn primary" type="submit">Unlock</button></div>
+      </form>`);
+    return '<p class="unlocked-note">Unlocked. The vault locks itself after 10 minutes without activity, and you can lock it with the Lock button.</p>';
+  }
+
+  function renderCredentials() {
+    const state = credState();
+    $('#btnLock').hidden = state !== 'open';
+    $('#btnChangePass').hidden = state !== 'open';
+    $('#btnAddCred').hidden = state !== 'open';
+    $('#credToolbar').hidden = !(state === 'open' || state === 'locked');
+    if (V.panelState !== state) {
+      V.panelState = state;
+      $('#vaultPanel').innerHTML = panelHtml(state);
+      const first = $('#vaultPanel input');
+      if (first && !S.drawerOpen && !$('#dlg').open) first.focus();
+    }
+    if (document.activeElement !== $('#crSearch')) $('#crSearch').value = S.crQ;
+    renderCredRows();
+  }
+
+  function filteredCreds() {
+    const q = S.crQ.trim().toLowerCase();
+    return credItems()
+      .filter((c) => {
+        if (!q) return true;
+        let hay = `${c.site} ${c.url}`;
+        const p = V.cache.get(c.id);
+        if (V.key && p && !p.error) hay += ` ${p.username || ''} ${p.notes || ''}`;
+        return hay.toLowerCase().includes(q);
+      })
+      .sort((a, b) => a.site.localeCompare(b.site, undefined, { sensitivity: 'base' }));
+  }
+
+  function secretCell(id, field, value) {
+    if (!value) return '<span class="dash">\u2014</span>';
+    const shown = V.revealed.has(`${id}:${field}`);
+    return `<div class="secret"><code>${shown ? esc(value) : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}</code>
+      <button class="btn" type="button" data-act="cred-reveal" data-field="${field}" aria-pressed="${shown}" aria-label="${shown ? 'Hide' : 'Show'} ${field}">${shown ? 'Hide' : 'Show'}</button>
+      <button class="btn" type="button" data-act="cred-copy" data-field="${field}" aria-label="Copy ${field}">Copy</button></div>`;
+  }
+
+  function renderCredRows() {
+    const state = credState();
+    const box = $('#credTable');
+    if (state !== 'open' && state !== 'locked') { box.innerHTML = ''; return; }
+    if (!credItems().length) {
+      box.innerHTML = state === 'open'
+        ? '<div class="empty board"><h3>No logins saved yet</h3><p>Add the first one with the Add credential button.</p></div>'
+        : '<div class="empty board"><h3>No logins saved yet</h3><p>Unlock the vault to add one.</p></div>';
+      return;
+    }
+    const list = filteredCreds();
+    if (!list.length) { box.innerHTML = '<div class="empty board"><h3>No logins match that search</h3></div>'; return; }
+    const open = state === 'open';
+    const locked = '<span class="locked-cell">Locked</span>';
+    box.innerHTML = `<div class="ctable-wrap"><table class="ctable"><thead><tr>
+      <th>Site</th><th>Website</th><th>Username</th><th>Password</th><th>Notes</th><th><span class="sr">Edit</span></th>
+      </tr></thead><tbody>${list.map((c) => {
+        const p = V.cache.get(c.id);
+        const bad = open && p && p.error;
+        const cells = !open ? [locked, locked, locked]
+          : bad ? ['<span class="locked-cell">Can\u2019t be read with this passphrase</span>', '', '']
+          : [secretCell(c.id, 'username', p && p.username), secretCell(c.id, 'password', p && p.password), p && p.notes ? esc(p.notes) : '<span class="dash">\u2014</span>'];
+        return `<tr data-id="${esc(c.id)}">
+          <td class="c-party" data-label="Site">${esc(c.site)}</td>
+          <td data-label="Website">${sourceHtml(c.url) || '<span class="dash">\u2014</span>'}</td>
+          <td data-label="Username">${cells[0]}</td>
+          <td data-label="Password">${cells[1]}</td>
+          <td data-label="Notes">${cells[2]}</td>
+          <td class="c-act">${open ? `<button class="btn" type="button" data-act="edit-cred" aria-label="Edit ${esc(c.site)}">Edit</button>` : ''}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+
+  async function handleVaultForm(form) {
+    if (V.busy) return;
+    const kind = form.dataset.form;
+    const err = $('#vaultErr');
+    const btn = form.querySelector('button[type="submit"]');
+    const fd = new FormData(form);
+    const label = btn.textContent;
+    const busy = (on, text) => { V.busy = on; btn.disabled = on; btn.textContent = on ? text : label; };
+
+    if (kind === 'vault-setup') {
+      const p1 = normPass(fd.get('pass'));
+      const p2 = normPass(fd.get('pass2'));
+      if (p1.length < 12) { err.textContent = 'Use at least 12 characters.'; return; }
+      if (p1 !== p2) { err.textContent = 'The two passphrases do not match.'; return; }
+      if (!(await ensureName())) return;
+      busy(true, 'Creating');
+      try {
+        const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+        const key = await deriveKey(p1, salt, KDF_ITER);
+        const check = await seal(key, { ok: CHECK_TEXT }, VAULT_ID);
+        const ok = await persistItems('credentials', [{ id: VAULT_ID, kind: 'vault', site: 'Vault', url: '', salt, iter: KDF_ITER, check }], { createOnly: true });
+        if (ok) {
+          V.key = key;
+          V.last = Date.now();
+          await decryptAll();
+          toast('Vault created. Share the passphrase only with people who need these logins.');
+        } else if (vaultMeta()) {
+          toast('Someone just set up the vault first. Enter their passphrase to unlock it.', 'warn');
+        }
+      } catch {
+        err.textContent = 'Could not create the vault. Try again.';
+      } finally {
+        busy(false);
+        V.panelState = '';
+        render();
+      }
+      return;
+    }
+
+    if (kind === 'vault-unlock') {
+      const pass = normPass(fd.get('pass'));
+      if (!pass) { err.textContent = 'Enter the team passphrase.'; return; }
+      busy(true, 'Unlocking');
+      try {
+        const meta = vaultMeta();
+        const key = await deriveKey(pass, meta.salt, meta.iter);
+        let good = false;
+        try { good = (await openBlob(key, meta.check, VAULT_ID)).ok === CHECK_TEXT; } catch { good = false; }
+        if (!good) { err.textContent = 'That passphrase is not correct.'; busy(false); return; }
+        V.key = key;
+        V.last = Date.now();
+        await decryptAll();
+        busy(false);
+        V.panelState = '';
+        render();
+      } catch {
+        err.textContent = 'Could not unlock the vault. Try again.';
+        busy(false);
+      }
+    }
+  }
+
+  async function changePassphrase() {
+    if (!V.key) return;
+    const r = await dialog(`
+      <form method="dialog">
+        <h2>Change the vault passphrase</h2>
+        <p>Every saved login is re-encrypted with the new passphrase, and everyone will need it from now on.</p>
+        <input type="password" name="cur" required placeholder="Current passphrase" autocomplete="current-password">
+        <input type="password" name="p1" required minlength="12" placeholder="New passphrase (12 or more characters)" autocomplete="new-password">
+        <input type="password" name="p2" required minlength="12" placeholder="Repeat the new passphrase" autocomplete="new-password">
+        <div class="acts"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn primary" value="ok">Change passphrase</button></div>
+      </form>`);
+    if (r.action !== 'ok') return;
+    const cur = normPass(r.data.get('cur'));
+    const p1 = normPass(r.data.get('p1'));
+    const p2 = normPass(r.data.get('p2'));
+    if (p1.length < 12) { toast('The new passphrase needs at least 12 characters.', 'warn'); return; }
+    if (p1 !== p2) { toast('The two new passphrases did not match. Nothing was changed.', 'warn'); return; }
+    if (!(await ensureName())) return;
+    const meta = vaultMeta();
+    try {
+      const oldKey = await deriveKey(cur, meta.salt, meta.iter);
+      let good = false;
+      try { good = (await openBlob(oldKey, meta.check, VAULT_ID)).ok === CHECK_TEXT; } catch { good = false; }
+      if (!good) { toast('The current passphrase is not correct. Nothing was changed.', 'warn'); return; }
+      const items = credItems();
+      if (items.some((it) => !V.cache.get(it.id) || V.cache.get(it.id).error)) {
+        toast('Some entries can\u2019t be read with the current passphrase. Delete or re-enter them first, then change the passphrase.', 'warn');
+        return;
+      }
+      toast('Re-encrypting. This takes a moment.');
+      const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+      const newKey = await deriveKey(p1, salt, KDF_ITER);
+      const check = await seal(newKey, { ok: CHECK_TEXT }, VAULT_ID);
+      const list = [{ id: VAULT_ID, kind: 'vault', site: 'Vault', url: '', salt, iter: KDF_ITER, check }];
+      for (const it of items) {
+        list.push({ id: it.id, kind: 'credential', site: it.site, url: it.url, secret: await seal(newKey, V.cache.get(it.id), it.id) });
+      }
+      const ok = await persistItems('credentials', list);
+      if (ok) {
+        V.key = newKey;
+        V.last = Date.now();
+        toast('Passphrase changed. Tell your team to use the new one.');
+      } else {
+        await decryptAll();
+        toast('Someone changed the vault while you were working, so nothing was changed. Try again.', 'warn');
+      }
+      render();
+    } catch {
+      toast('Could not change the passphrase. Nothing was changed.', 'err');
+    }
+  }
+
+  function openCredentialDrawer(c) {
+    if (!V.key) { toast('Unlock the vault first.', 'warn'); return; }
+    const isNew = !c;
+    const plain = (c && V.cache.get(c.id)) || {};
+    const base = c || { id: newId('k'), site: '', url: '' };
+    const d = $('#drawer');
+    d.innerHTML = `<form novalidate autocomplete="off">
+      <div class="dr-head"><div><h2 id="drawerTitle">${isNew ? 'Add a credential' : 'Edit credential'}</h2>
+        <p>${isNew ? 'The login is encrypted before it is saved.' : changedLine(c)}</p></div>
+        <button class="dr-x" type="button" data-act="close" aria-label="Close">\u00D7</button></div>
+      <div class="dr-body">
+        <div class="fld"><label for="kfSite">Site name</label><input id="kfSite" name="site" type="text" maxlength="120" value="${esc(base.site)}" required placeholder="Map Your Show exhibitor portal"></div>
+        <div class="fld"><label for="kfUrl">Website</label><input id="kfUrl" name="url" type="text" inputmode="url" maxlength="500" value="${esc(base.url)}" placeholder="https://"></div>
+        <div class="fld"><label for="kfUser">Username</label><input id="kfUser" name="username" type="text" maxlength="300" value="${esc(plain.username || '')}" autocomplete="off"></div>
+        <div class="fld"><label for="kfPass">Password</label>
+          <input id="kfPass" name="password" type="password" maxlength="500" value="${esc(plain.password || '')}" autocomplete="new-password">
+          <div class="row-btns"><button class="btn" type="button" data-act="pass-vis">Show</button><button class="btn" type="button" data-act="gen-pass">Generate a strong password</button></div></div>
+        <div class="fld"><label for="kfNotes">Notes</label><textarea id="kfNotes" name="notes" maxlength="2000" placeholder="Which account it belongs to, who to ask for access">${esc(plain.notes || '')}</textarea>
+          <span class="hint">Notes are encrypted too, so security answers and hints are safe here.</span></div>
+        <div class="errmsg" id="drErr" role="alert"></div>
+      </div>${drawerFoot(isNew, isNew ? 'Add credential' : 'Save changes')}</form>`;
+    showDrawer('credentials', base.id, isNew, c);
+    const form = $('form', d);
+    form.addEventListener('submit', (ev) => { ev.preventDefault(); submitCredentialDrawer(form); });
+    $('#kfSite', d).focus();
+  }
+
+  async function submitCredentialDrawer(form) {
+    const d = $('#drawer');
+    const fd = new FormData(form);
+    const err = $('#drErr', d);
+    const site = String(fd.get('site') || '').trim();
+    const url = String(fd.get('url') || '').trim();
+    if (!site) { err.textContent = 'Give the site a name.'; $('#kfSite', d).focus(); return; }
+    if (url && !isWebUrl(url)) { err.textContent = 'The website must start with http:// or https://'; $('#kfUrl', d).focus(); return; }
+    if (!V.key) { err.textContent = 'The vault locked. Unlock it and try again.'; return; }
+    if (!(await ensureName())) return;
+    const id = d.dataset.id;
+    const isNew = !!d.dataset.new;
+    const plain = {
+      username: String(fd.get('username') || ''),
+      password: String(fd.get('password') || ''),
+      notes: String(fd.get('notes') || '').trim(),
+    };
+    const secret = await seal(V.key, plain, id);
+    V.cache.set(id, plain);
+    closeDrawer();
+    const ok = await persistItems('credentials', [{ id, kind: 'credential', site, url, secret }]);
+    if (ok) toast(isNew ? 'Credential added.' : 'Changes saved.');
+    else { await decryptAll(); render(); }
+  }
+
+  /* ------------------------------------------------------------------ *
    * Drawer (edit / add)
    * ------------------------------------------------------------------ */
   function openDrawer(task) {
@@ -868,7 +1235,10 @@
   }
 
   function closeDrawer() {
-    $('#drawer').hidden = true;
+    const d = $('#drawer');
+    d.innerHTML = ''; // don't leave decrypted values sitting in the page
+    d._base = null;
+    d.hidden = true;
     $('#backdrop').hidden = true;
     S.drawerOpen = false;
   }
@@ -1122,7 +1492,7 @@
 
   function readHash() {
     const p = new URLSearchParams(location.hash.replace(/^#/, ''));
-    S.tab = ['contacts', 'notes'].includes(p.get('tab')) ? p.get('tab') : 'plan';
+    S.tab = ['contacts', 'notes', 'credentials'].includes(p.get('tab')) ? p.get('tab') : 'plan';
     if (p.get('team')) S.filters.dept = p.get('team');
     if (['timeline', 'list'].includes(p.get('view'))) S.view = p.get('view');
     if (ZOOM_PX[p.get('zoom')]) S.zoom = p.get('zoom');
@@ -1138,7 +1508,14 @@
       const el = ev.target.closest('[data-act], [data-dept], [data-view], [data-zoom], [data-tab], [data-ccat]');
       if (!el) return;
 
-      if (el.dataset.tab) { S.tab = el.dataset.tab; S.needFocus = true; render(); refresh(); return; }
+      if (el.dataset.tab) {
+        S.tab = el.dataset.tab;
+        S.needFocus = true;
+        render();
+        if (S.tab === 'credentials' && !S.credsLoaded) { await ensureCredsLoaded(); render(); }
+        refresh();
+        return;
+      }
       if (el.dataset.ccat) { S.cCat = el.dataset.ccat; renderContacts(); return; }
 
       if (el.dataset.dept) { S.filters.dept = el.dataset.dept; S.needFocus = true; render(); return; }
@@ -1151,6 +1528,31 @@
       switch (el.dataset.act) {
         case 'open': if (task) openDrawer(task); break;
         case 'edit-contact': { const c = row && S.contacts.find((x) => x.id === row.dataset.id); if (c) openContactDrawer(c); break; }
+        case 'edit-cred': { const k = row && S.credentials.find((x) => x.id === row.dataset.id); if (k) openCredentialDrawer(k); break; }
+        case 'cred-reveal': {
+          if (!row) break;
+          const key = `${row.dataset.id}:${el.dataset.field}`;
+          if (V.revealed.has(key)) { clearTimeout(V.revealed.get(key)); V.revealed.delete(key); }
+          else V.revealed.set(key, setTimeout(() => { V.revealed.delete(key); if (S.tab === 'credentials') renderCredRows(); }, 30000));
+          renderCredRows();
+          break;
+        }
+        case 'cred-copy': {
+          const p = row && V.cache.get(row.dataset.id);
+          const v = p && p[el.dataset.field];
+          if (v) { await copyText(v); toast(`${el.dataset.field === 'password' ? 'Password' : 'Username'} copied.`); }
+          break;
+        }
+        case 'pass-vis': {
+          const inp = $('#kfPass');
+          if (inp) { const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; el.textContent = show ? 'Hide' : 'Show'; }
+          break;
+        }
+        case 'gen-pass': {
+          const inp = $('#kfPass');
+          if (inp) { inp.value = randomPassword(20); inp.type = 'text'; const b = $('[data-act="pass-vis"]'); if (b) b.textContent = 'Hide'; }
+          break;
+        }
         case 'edit-note': { const n = row && S.notes.find((x) => x.id === row.dataset.id); if (n) openNoteDrawer(n); break; }
         case 'toggle': if (task) await persist([{ ...task, status: isDone(task) ? 'Not Started' : 'Done' }]); break;
         case 'collapse': {
@@ -1176,9 +1578,10 @@
           const kind = d.dataset.kind || 'tasks';
           const id = d.dataset.id;
           const item = S[kind].find((x) => x.id === id);
-          const noun = { tasks: 'task', contacts: 'contact', notes: 'note' }[kind];
+          const noun = { tasks: 'task', contacts: 'contact', notes: 'note', credentials: 'credential' }[kind];
           if (item && await confirmDialog(`Delete this ${noun}?`, `"${itemLabel(kind, item)}" will be removed for everyone. This cannot be undone.`, `Delete ${noun}`)) {
             closeDrawer();
+            if (kind === 'credentials') V.cache.delete(id);
             if (await removeItem(kind, id)) toast(`${noun[0].toUpperCase() + noun.slice(1)} deleted.`);
           }
           break;
@@ -1212,6 +1615,17 @@
     $('#btnAdd').addEventListener('click', () => openDrawer(null));
     $('#btnAddContact').addEventListener('click', () => openContactDrawer(null));
     $('#btnAddNote').addEventListener('click', () => openNoteDrawer(null));
+    $('#btnAddCred').addEventListener('click', () => openCredentialDrawer(null));
+    $('#btnLock').addEventListener('click', () => lockVault('Vault locked.'));
+    $('#btnChangePass').addEventListener('click', changePassphrase);
+    let kTimer;
+    $('#crSearch').addEventListener('input', (e) => { clearTimeout(kTimer); kTimer = setTimeout(() => { S.crQ = e.target.value; renderCredRows(); }, 120); });
+    document.addEventListener('submit', (ev) => {
+      const f = ev.target;
+      if (f && f.dataset && f.dataset.form) { ev.preventDefault(); handleVaultForm(f); }
+    });
+    ['click', 'keydown'].forEach((t) => document.addEventListener(t, () => { if (V.key) V.last = Date.now(); }, true));
+    setInterval(() => { if (V.key && Date.now() - V.last > LOCK_MS) lockVault('Vault locked after 10 minutes without activity.'); }, 15000);
     let cTimer, nTimer;
     $('#cSearch').addEventListener('input', (e) => { clearTimeout(cTimer); cTimer = setTimeout(() => { S.cQ = e.target.value; renderContactRows(); }, 120); });
     $('#nSearch').addEventListener('input', (e) => { clearTimeout(nTimer); nTimer = setTimeout(() => { S.nQ = e.target.value; renderNoteList(); }, 120); });
@@ -1229,9 +1643,14 @@
   async function refresh() {
     if (S.mode !== 'shared' || S.drawerOpen || S.saving || $('#dlg').open) return;
     const kind = S.tab === 'plan' ? 'tasks' : S.tab;
+    if (kind === 'credentials' && !S.credsLoaded) return;
     const sig = () => JSON.stringify(S[kind].map((t) => [t.id, t.updatedAt]).sort());
     const before = sig();
     if (await loadCollection(kind, false)) {
+      if (kind === 'credentials' && V.key && before !== sig()) {
+        if (!(await keyStillValid())) { lockVault('The vault passphrase was changed. Enter the new one.'); return; }
+        await decryptAll();
+      }
       if (before !== sig()) render(); else renderTop();
     }
   }
@@ -1248,6 +1667,7 @@
     } catch { /* keep defaults */ }
     await loadCollection('tasks', true);
     const [okC, okN] = await Promise.all([loadCollection('contacts', true), loadCollection('notes', true)]);
+    if (S.tab === 'credentials') await ensureCredsLoaded();
     if (S.mode === 'shared' && !(okC && okN)) toast('The contact list or notes could not load. Refresh the page in a minute.', 'warn');
     if (S.filters.dept !== 'All' && S.filters.dept !== '__ref' && !deptList().includes(S.filters.dept)) S.filters.dept = 'All';
     render();

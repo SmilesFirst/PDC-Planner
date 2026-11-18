@@ -30,6 +30,7 @@
     <button type="button" data-tab="plan">Plan</button>
     <button type="button" data-tab="contacts">Contacts</button>
     <button type="button" data-tab="notes">Notes</button>
+    <button type="button" data-tab="credentials">Credentials</button>
   </nav>
 
   <div id="banners"></div>
@@ -119,6 +120,28 @@
       </label>
     </div>
     <div id="nList" class="notes-list"></div>
+  </section>
+
+  <section id="credsView" class="page" hidden aria-label="Credentials">
+    <div class="page-head">
+      <div>
+        <h2>Credentials</h2>
+        <p>Shared logins for show and vendor portals. Usernames, passwords and notes are encrypted in your browser before they are saved.</p>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="btnLock" type="button" hidden>Lock</button>
+        <button class="btn" id="btnChangePass" type="button" hidden>Change passphrase</button>
+        <button class="btn primary" id="btnAddCred" type="button" hidden>Add credential</button>
+      </div>
+    </div>
+    <p class="cred-warn">Anyone who knows the vault passphrase can read every login here. Use it for shared show and vendor logins, not for personal, banking or admin passwords.</p>
+    <div id="vaultPanel"></div>
+    <div class="toolbar" id="credToolbar" hidden>
+      <label class="field grow-field">Search
+        <input id="crSearch" type="search" placeholder="Site, website or username" autocomplete="off">
+      </label>
+    </div>
+    <div id="credTable"></div>
   </section>
 
   <div id="backdrop" class="backdrop" hidden></div>

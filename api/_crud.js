@@ -91,16 +91,23 @@ function createHandler({ name, listKey, clean, seedItems }) {
         }
 
         // If someone saved this item after the editor opened it, don't overwrite their change.
-        const checks = cleaned.filter((c) => c.base !== undefined && c.base !== null);
+        const checks = cleaned.filter((c) => c.base !== undefined && c.base !== null && c.base !== '');
         const existing = await store.getMany(checks.map((c) => c.item.id));
         const conflicts = checks
           .filter((c) => existing[c.item.id] && existing[c.item.id].updatedAt !== c.base)
           .map((c) => existing[c.item.id]);
         if (conflicts.length) return send(res, 409, { error: 'conflict', conflicts });
 
-        const saved = cleaned.map((c) => c.item);
-        await store.setMany(saved);
-        return send(res, 200, { ok: true, saved });
+        // base === '' means "create only": refuse if it already exists (checked atomically).
+        for (const c of cleaned.filter((x) => x.base === '')) {
+          if (!(await store.setIfAbsent(c.item))) {
+            const current = (await store.getMany([c.item.id]))[c.item.id];
+            return send(res, 409, { error: 'conflict', conflicts: current ? [current] : [] });
+          }
+        }
+
+        await store.setMany(cleaned.filter((c) => c.base !== '').map((c) => c.item));
+        return send(res, 200, { ok: true, saved: cleaned.map((c) => c.item) });
       }
 
       if (req.method === 'DELETE') {

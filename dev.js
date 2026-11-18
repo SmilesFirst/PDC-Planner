@@ -10,6 +10,7 @@ const handlers = {
   '/api/tasks': require('./api/tasks.js'),
   '/api/contacts': require('./api/contacts.js'),
   '/api/notes': require('./api/notes.js'),
+  '/api/credentials': require('./api/credentials.js'),
 };
 
 const PUBLIC = path.join(__dirname, 'public');
